@@ -506,6 +506,7 @@ export const run: Agent = async (context, input) => {
             asJson({
               job: {
                 id: job.id,
+                uniqueId: job.uniqueId,
                 name: job.name,
                 titleCode: job.titleCode,
                 jurisdiction: job.jurisdiction,
@@ -686,6 +687,7 @@ export const run: Agent = async (context, input) => {
             asJson({
               job: {
                 id: job.id,
+                uniqueId: job.uniqueId,
                 name: job.name,
                 titleCode: job.titleCode,
                 jurisdiction: job.jurisdiction,
@@ -722,6 +724,7 @@ export const run: Agent = async (context, input) => {
       result.educationRequirementResearchResults as Json[]
     ).map((value) => ({
       ...object(value),
+      uniqueId: job.uniqueId,
       titleCode: job.titleCode,
       status: result.status,
     })) as unknown as SkillsFirstLegalResearch[];

@@ -505,6 +505,9 @@ test("review results: pagination, search, unknowns, children and trial compariso
     .getByRole("region", { name: "Skills First findings" })
     .first();
   await expect(findings).toBeVisible();
+  await expect(
+    findings.getByText("Unique ID", { exact: true }).locator(".."),
+  ).toContainText("Fixture jurisdiction | 000 | Technician series | Junior");
   await expect(findings).toContainText("Not checked");
   await expect(
     findings.getByText("Degree mandatory", { exact: true }).locator(".."),
@@ -539,12 +542,23 @@ test("review results: pagination, search, unknowns, children and trial compariso
   await expect(
     panel.getByRole("heading", { name: "Technician 1", exact: true }),
   ).toBeVisible();
+  await expect(
+    panel.getByRole("region", { name: "Skills First findings" }),
+  ).toContainText("7 passed · 0 failed · 2 not applicable");
+  await expect(
+    panel.getByRole("region", { name: "Skills First findings" }),
+  ).not.toContainText("7/9");
   await panel
     .getByRole("combobox", { name: "Show", exact: true })
     .selectOption("failed");
   await expect(
     panel.getByText("Unsupported evidence", { exact: true }),
   ).toBeVisible();
+  await expect(
+    panel.getByRole("region", { name: "Skills First findings" }),
+  ).toContainText(
+    "1 passed · 1 failed · 1 not applicable · 1 unknown · 5 not checked",
+  );
   await panel
     .getByRole("combobox", { name: "Show", exact: true })
     .selectOption("children");

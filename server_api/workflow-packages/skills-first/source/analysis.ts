@@ -2,7 +2,12 @@ import { fleschKincaid } from "flesch-kincaid";
 import { syllable } from "syllable";
 import { EducationTypes } from "./educationTypes.js";
 import { readingLevels } from "./readingLevels.js";
-import { canonicalJob, projectFindings, validateFindings } from "./memory.js";
+import {
+  canonicalJob,
+  enforceConsistencyRules,
+  projectFindings,
+  validateFindings,
+} from "./memory.js";
 import {
   documentPassages,
   documentStatement,
@@ -29,7 +34,7 @@ const tasks = [
   ],
   [
     "mandatory",
-    "Determine whether degrees are mandatory, preferred, or replaceable by explicitly stated alternative qualifications. In findings report isDegreeMandatory, hasAlternativeQualifications, multipleQualificationPaths, isDegreeAbsolutelyRequired and substitutionPossible (each boolean|null), alternativeQualifications (string[]|null), degreePreferenceEvidenceId (INPUT.sourcePassages ID|null), and mandatoryStatusExplanations:{degreeRequirementExplanation:string|null,bothTrueExplanation:string|null,bothFalseExplanation:string|null}. Explain how the stated paths affect the degree requirement, including when no degree is stated and the broader requirement remains unverified. bothTrueExplanation explains when both a required degree and alternatives exist; bothFalseExplanation explains when neither exists. Use null for inapplicable explanations and unsupported facts; never invent an experience substitution. Do not return degreePreferenceQuote: code copies the selected source passage.",
+    "Determine whether degrees are mandatory, preferred, or replaceable by explicitly stated alternative qualifications. In findings report isDegreeMandatory, hasAlternativeQualifications, multipleQualificationPaths, isDegreeAbsolutelyRequired and substitutionPossible (each boolean|null), alternativeQualifications (string[]|null), degreePreferenceEvidenceId (INPUT.sourcePassages ID|null), and mandatoryStatusExplanations:{degreeRequirementExplanation:string|null,bothTrueExplanation:string|null,bothFalseExplanation:string|null}. Keep hasAlternativeQualifications, alternativeQualifications and multipleQualificationPaths in the same scope: a degree route versus explicitly stated alternative qualifications. Do not set multipleQualificationPaths true solely because a specialty lists OR options for experience or certification without a degree route. multipleQualificationPaths true with hasAlternativeQualifications false is contradictory, whether alternativeQualifications is empty or null. Explain how the stated paths affect the degree requirement, including when no degree is stated and the broader requirement remains unverified. bothTrueExplanation explains when both a required degree and alternatives exist; bothFalseExplanation explains when neither exists. Use null for inapplicable explanations and unsupported facts; never invent an experience substitution. Do not return degreePreferenceQuote: code copies the selected source passage.",
   ],
   [
     "licenses",
@@ -41,7 +46,7 @@ const tasks = [
   ],
   [
     "consistency",
-    "Check the fidelity of prior education, mandatory-status, license and barrier analyses to INPUT.text. These are extraction consistency checks, not certification of external legal completeness. In findings return validationChecks with all nine keys: cscRevisedConsistency (if explicitly CSC-revised, check that the revision's alternative paths are reflected); requiredAlternativeExplanationConsistency (the applicable mandatory-status explanation reconciles required and alternative paths); barriersToNonDegreeApplicantsConsistency (barriers agree with the stated degree paths); licenseIncludesDegreeRequirementConsistency (license/degree claims agree without invented prerequisites); alternativesIfTrueConsistency (claimed alternatives have an explanation and source support); degreeMandatoryConsistency (mandatory/absolutely-required flags reflect every available path); alternativeQualificationsConsistency (alternatives and multiple paths agree); educationRequirementsConsistency (types, scope and quotes match); needsCollegeDegreeConsistency (the college-degree conclusion agrees with the stated paths). Each new check must be pass, fail, or n/a. pass means the extraction accurately reflects the available evidence, including honestly preserved nulls; missing external evidence alone does not make an accurate extraction inconsistent. fail means a contradictory, unsupported or unverifiable assertion. n/a means the specific condition does not apply, such as no explicitly CSC-revised input or no claimed alternative path to check. Never relabel an unresolved assertion n/a to pass the contract. Explain every fail and n/a in issues:string[]. Distinguish preferences from requirements; required degrees without alternatives are not inherently contradictory.",
+    "Check the fidelity of prior education, mandatory-status, license and barrier analyses to INPUT.text. These are extraction consistency checks, not certification of external legal completeness. In findings return validationChecks with all nine keys: cscRevisedConsistency (if explicitly CSC-revised, check that the revision's alternative paths are reflected); requiredAlternativeExplanationConsistency (the applicable mandatory-status explanation reconciles required and alternative paths); barriersToNonDegreeApplicantsConsistency (barriers agree with the stated degree paths); licenseIncludesDegreeRequirementConsistency (license/degree claims agree without invented prerequisites); alternativesIfTrueConsistency (claimed alternatives have an explanation and source support); degreeMandatoryConsistency (mandatory/absolutely-required flags reflect every available path); alternativeQualificationsConsistency (alternatives and multiple paths agree); educationRequirementsConsistency (types, scope and quotes match); needsCollegeDegreeConsistency (the college-degree conclusion agrees with the stated paths). For alternativeQualificationsConsistency, multipleQualificationPaths true with hasAlternativeQualifications false must fail even when alternativeQualifications is empty or null. Both flags describe degree-versus-alternative qualification paths; unrelated OR options within specialty experience or certification do not establish a degree alternative. Never mark this contradiction pass or n/a. Each new check must be pass, fail, or n/a. pass means the extraction accurately reflects the available evidence, including honestly preserved nulls; missing external evidence alone does not make an accurate extraction inconsistent. fail means a contradictory, unsupported or unverifiable assertion. n/a means the specific condition does not apply, such as no explicitly CSC-revised input or no claimed alternative path to check. Never relabel an unresolved assertion n/a to pass the contract. Explain every fail and n/a in issues:string[]. Distinguish preferences from requirements; required degrees without alternatives are not inherently contradictory.",
   ],
   [
     "readingLevel",
@@ -141,6 +146,7 @@ export const run: Agent = async (context, input) => {
         validateFindings(name, findings, job.text);
         job.analysis[name] = result;
         projectFindings(job, name, findings);
+        if (name === "consistency") enforceConsistencyRules(job);
         if (name === "degrees" || name === "licenses")
           job.analysis.documentRequirements = asJson({
             ...object(job.analysis.documentRequirements ?? {}),

@@ -200,7 +200,7 @@ const resultStore = new MemoryWorkflowStore();
 await resultStore.create(state);
 const resultAssets = new AssetService(resultStore, path.join(temp, "assets"));
 const resultService = new ResultService(resultStore, resultAssets);
-const { canonicalJob } = await import(
+const { canonicalJob, consistencyKeys } = await import(
   new URL(
     "../../../workflow-packages/skills-first/source/memory.ts",
     import.meta.url,
@@ -221,6 +221,24 @@ const resultRows = Array.from({ length: 25 }, (_, i) =>
         findings: { isDegreeMandatory: false },
         evidence: [],
       },
+      ...([1, 2].includes(i)
+        ? {
+            consistency: {
+              findings: {
+                validationChecks: Object.fromEntries(
+                  consistencyKeys.map((key: string, index: number) => [
+                    key,
+                    i === 1
+                      ? index < 2
+                        ? "n/a"
+                        : "pass"
+                      : (["pass", "fail", "n/a", "unknown"][index] ?? null),
+                  ]),
+                ),
+              },
+            },
+          }
+        : {}),
     },
     rewrittenText: "Proposed skills-based wording",
     status: i === 1 ? "unknown" : "complete",

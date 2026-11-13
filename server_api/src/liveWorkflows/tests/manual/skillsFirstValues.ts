@@ -188,6 +188,34 @@ export async function verifySkillsFirstValues(input: {
   for (const job of jobs) {
     const id = String(job.id),
       analysis = object(job.analysis);
+    const code =
+      String(job.titleCode ?? "").trim() || String(job.classCode ?? "").trim();
+    const title = String(job.level ? (job.parentName ?? job.name) : job.name);
+    const identityParts = [String(job.jurisdiction), code, title];
+    if (job.level) identityParts.push(String(object(job.level).name));
+    if (!code || !title.trim()) identityParts.push(id);
+    equal(
+      id,
+      "uniqueId",
+      job.uniqueId,
+      identityParts
+        .map((part) =>
+          part
+            .normalize("NFC")
+            .trim()
+            .replace(/\s+/gu, " ")
+            .replaceAll("\\", "\\\\")
+            .replaceAll("|", "\\|"),
+        )
+        .join(" | "),
+    );
+    for (const [collection, rows] of [
+      ["research", at(job, "degreeAnalysis.deepResearchResults")],
+      ["licenseComparisons", job.licenseComparisons],
+    ] as const) {
+      for (const row of rows as Record<string, unknown>[])
+        equal(id, `${collection}.uniqueId`, row.uniqueId, job.uniqueId);
+    }
     for (const task of analysisNames) {
       const entry = ledger.get(
         stableRequestId(
@@ -265,6 +293,66 @@ export async function verifySkillsFirstValues(input: {
       }
       for (const [field, target] of Object.entries(projections[task] ?? {})) {
         let value = at(resolvedRaw.findings, field);
+        if (task === "consistency" && field === "validationChecks") {
+          // Independently verify the deterministic rule as well as the unchanged
+          // provider response above. Empty and null alternatives have the same rule.
+          const flags = object(
+            at(job, "degreeAnalysis.degreeRequirementStatus"),
+          );
+          const rule = object(analysis.consistencyRules);
+          const check = "alternativeQualificationsConsistency";
+          const contradiction =
+            flags.multipleQualificationPaths === true &&
+            flags.hasAlternativeQualifications === false;
+          if (contradiction) {
+            equal(
+              id,
+              "consistencyRules.rule",
+              rule.rule,
+              "qualification-paths-require-alternatives",
+            );
+            equal(id, "consistencyRules.check", rule.check, check);
+            equal(
+              id,
+              "consistencyRules.originalResult",
+              rule.originalResult,
+              object(value)[check],
+            );
+            equal(
+              id,
+              "consistencyRules.enforcedResult",
+              rule.enforcedResult,
+              "fail",
+            );
+            equal(id, "consistencyRules.status", rule.status, "unknown");
+            equal(
+              id,
+              "consistencyRules.recordNeedsReview",
+              job.status,
+              "unknown",
+            );
+            equal(
+              id,
+              "consistencyRules.explanation",
+              Array.isArray(rule.issues) &&
+                rule.issues.some(
+                  (issue: unknown) =>
+                    typeof issue === "string" &&
+                    issue.includes("multipleQualificationPaths") &&
+                    issue.includes("hasAlternativeQualifications"),
+                ),
+              true,
+            );
+            value = { ...object(value), [check]: "fail" };
+          } else {
+            equal(
+              id,
+              "consistencyRules.absentWithoutContradiction",
+              analysis.consistencyRules,
+              undefined,
+            );
+          }
+        }
         if (typeof value === "string") {
           if (task === "licenses" && field === "licenseType")
             value = licenseLabel(value);
@@ -399,6 +487,7 @@ export async function verifySkillsFirstValues(input: {
     const row = index + 2,
       id = String(job.id);
     const expected = [
+      job.uniqueId,
       job.id,
       job.name,
       job.originalText ?? job.text,
@@ -427,13 +516,13 @@ export async function verifySkillsFirstValues(input: {
     equal(
       id,
       "xlsx.Review.analysis",
-      JSON.parse(String(readCell(provenance, row, 9))),
+      JSON.parse(String(readCell(provenance, row, 10))),
       job.analysis,
     );
     equal(
       id,
       "xlsx.Review.errors",
-      readCell(provenance, row, 5) ?? null,
+      readCell(provenance, row, 6) ?? null,
       (job.errors as string[]).join("; ") || job.error || null,
     );
   }

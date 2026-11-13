@@ -1,5 +1,5 @@
 import columns from "../schemas/exportColumns.json" with { type: "json" };
-import { record } from "./memory.js";
+import { consistencyKeys, record } from "./memory.js";
 import type { Job } from "./sdk.js";
 import type {
   SkillsFirstJobDescription,
@@ -22,6 +22,28 @@ export interface Workbook {
   sheets: Worksheet[];
 }
 const separator = "\r\n|\r\n";
+/** Report applicability and missing checks separately from failures. Never imply accuracy. */
+export function validationSummary(job: SkillsFirstJobDescription): string {
+  const checks = consistencyKeys.map(
+    (key) => job.degreeAnalysis.validationChecks?.[key],
+  );
+  const count = (value: string) =>
+    checks.filter((check) => check === value).length;
+  const passed = count("pass"),
+    failed = count("fail"),
+    notApplicable = count("n/a"),
+    unknown = count("unknown");
+  const notChecked =
+    consistencyKeys.length - passed - failed - notApplicable - unknown;
+  if (notChecked === consistencyKeys.length) return "Not checked (9 checks)";
+  return [
+    `${passed} passed`,
+    `${failed} failed`,
+    `${notApplicable} not applicable`,
+    ...(unknown ? [`${unknown} unknown`] : []),
+    ...(notChecked ? [`${notChecked} not checked`] : []),
+  ].join(" · ");
+}
 export const masterHeaders = [
   ...columns.core,
   ...columns.license,
@@ -106,13 +128,37 @@ export function workbook(
   const acceptedRewrites = new Set(
     memory.rewrittenJobDescriptions.map((job) => job.id),
   );
-  const coreAndLicenseHeaders = masterHeaders.slice(0, 64);
+  const coreAndLicenseCount = columns.core.length + columns.license.length;
+  const coreAndLicenseHeaders = masterHeaders.slice(0, coreAndLicenseCount);
   const licenseHeaders = columns.license.map((column) =>
     column.header === "Matchin WVU Profession"
       ? "Matching WVU Profession"
       : column.header,
   );
   const sheets: Worksheet[] = [
+    {
+      name: "Validation summary",
+      headerRows: 1,
+      rows: [
+        [
+          "Unique ID",
+          "Record ID",
+          "Title Code",
+          "Job title",
+          "Consistency checks",
+          "What these checks measure",
+        ],
+        ...memory.jobDescriptions.map((job) => [
+          job.uniqueId,
+          job.id,
+          job.titleCode,
+          job.name,
+          validationSummary(job),
+          "Consistency with the supplied description. These counts do not measure completeness, accuracy percentage or legal verification.",
+        ]),
+      ],
+      widths: [60, 42, 20, 40, 64, 70],
+    },
     {
       name: "merged (master + legal)",
       headerRows: 2,
@@ -129,7 +175,7 @@ export function workbook(
       name: "Master sheet old",
       headerRows: 2,
       rows: [
-        descriptions.slice(0, 64),
+        descriptions.slice(0, coreAndLicenseCount),
         coreAndLicenseHeaders,
         ...memory.jobDescriptions.flatMap((job) =>
           (job.licenseComparisons.length
@@ -143,26 +189,38 @@ export function workbook(
     {
       name: "license info",
       headerRows: 1,
-      rows: [licenseHeaders, ...memory.licenseComparisons.map(licenseRow)],
-      widths: licenseHeaders.map(() => 40),
+      rows: [
+        ["Unique ID", ...licenseHeaders],
+        ...memory.licenseComparisons.map((comparison) => [
+          comparison.uniqueId,
+          ...licenseRow(comparison),
+        ]),
+      ],
+      widths: [60, ...licenseHeaders.map(() => 40)],
     },
     {
       name: "legal research",
       headerRows: 1,
       rows: [
-        ["Title Code", ...columns.legal.map((column) => column.header)],
+        [
+          "Unique ID",
+          "Title Code",
+          ...columns.legal.map((column) => column.header),
+        ],
         ...memory.educationRequirementResearchResults.map((result) => [
+          result.uniqueId,
           result.titleCode,
           ...legalRow(result),
         ]),
       ],
-      widths: [20, 40, 60, 30, 30, 25, 30, 30, 60, 60, 20],
+      widths: [60, 20, 40, 60, 30, 30, 25, 30, 30, 60, 60, 20],
     },
     {
       name: "Review and provenance",
       headerRows: 1,
       rows: [
         [
+          "Unique ID",
           "Record ID",
           "Title Code",
           "Job title",
@@ -174,6 +232,7 @@ export function workbook(
           "Analysis and review details",
         ],
         ...memory.jobDescriptions.map((job) => [
+          job.uniqueId,
           job.id,
           job.titleCode,
           job.name,
@@ -185,13 +244,14 @@ export function workbook(
           JSON.stringify(job.analysis, null, 2),
         ]),
       ],
-      widths: [42, 20, 40, 18, 60, 42, 22, 42, 80],
+      widths: [60, 42, 20, 40, 18, 60, 42, 22, 42, 80],
     },
     {
       name: "Documents",
       headerRows: 1,
       rows: [
         [
+          "Unique ID",
           "Record ID",
           "Job title",
           "Original document",
@@ -207,6 +267,7 @@ export function workbook(
           "Assessment scope",
         ],
         ...memory.jobDescriptions.map((job) => [
+          job.uniqueId,
           job.id,
           job.name,
           job.originalText ?? job.text,
@@ -228,7 +289,7 @@ export function workbook(
             : null,
         ]),
       ],
-      widths: [42, 40, 100, 100, 100, 60, 60, 30, 32, 70, 32, 70, 70],
+      widths: [60, 42, 40, 100, 100, 100, 60, 60, 30, 32, 70, 32, 70, 70],
     },
   ];
   return { version: 1, sheets };

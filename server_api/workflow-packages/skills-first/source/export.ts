@@ -1,6 +1,11 @@
 import { jobs, asJson, type Agent, type Job } from "./sdk.js";
 import { canonicalJob, skillsFirstMemory } from "./memory.js";
-import { masterTable, workbook, workbookContentType } from "./workbook.js";
+import {
+  masterTable,
+  validationSummary,
+  workbook,
+  workbookContentType,
+} from "./workbook.js";
 
 export function csvCell(value: string): string {
   // CSVs are often opened in spreadsheets; prevent formula execution from source data.
@@ -61,10 +66,10 @@ export const run: Agent = async (context, input) => {
     );
     await context.artifact(
       `${stem}.md`,
-      records
+      memory.jobDescriptions
         .map(
           (j) =>
-            `## ${j.name}\n\nStatus: ${j.status}\n\n${j.rewrittenText ?? j.text}\n\n${j.citations.map((c) => `Source: ${c.url}\n> ${c.quote}`).join("\n\n")}`,
+            `## ${j.name}\n\nStatus: ${j.status}\n\nConsistency checks: ${validationSummary(j)}\n\nThese counts assess consistency with the supplied description, not completeness or legal verification.\n\n${j.rewrittenText ?? j.text}\n\n${j.citations.map((c) => `Source: ${c.url}\n> ${c.quote}`).join("\n\n")}`,
         )
         .join("\n\n"),
       "text/markdown",

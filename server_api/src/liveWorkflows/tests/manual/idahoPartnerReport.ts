@@ -54,7 +54,11 @@ const booleans = new Set([
   "isLicenseRequired",
   "includesDegreeRequirement",
 ]);
-const required = new Set(["isDegreeAbsolutelyRequired", "isLicenseRequired"]);
+const required = new Set([
+  "Unique ID",
+  "isDegreeAbsolutelyRequired",
+  "isLicenseRequired",
+]);
 const sourceFields = new Set([
   "variant",
   "classOfService",
@@ -82,11 +86,11 @@ export function auditPartnerCsv(csv: Buffer | string) {
   assert.deepEqual(
     table[1],
     allColumns.map((column) => column.header),
-    "All 74 headers must match, including whitespace",
+    `All ${allColumns.length} headers must match, including whitespace`,
   );
   const rows = table.slice(2);
   assert.ok(rows.length, "No exported partner rows");
-  for (const row of rows) assert.equal(row.length, 74);
+  for (const row of rows) assert.equal(row.length, allColumns.length);
   const issues: {
     exportRow: number;
     field: string;
@@ -101,7 +105,9 @@ export function auditPartnerCsv(csv: Buffer | string) {
       if (!value.trim()) {
         if (required.has(column.header))
           issue =
-            "Required yes/no field is blank; needs a supported decision before filter import";
+            column.header === "Unique ID"
+              ? "Required job matching key is blank"
+              : "Required yes/no field is blank; needs a supported decision before filter import";
       } else if (booleans.has(column.header) && !/^(TRUE|FALSE)$/i.test(value))
         issue = "Expected TRUE or FALSE";
       else if (
@@ -136,9 +142,9 @@ export function auditPartnerCsv(csv: Buffer | string) {
         ? "Correct when no processing error occurred"
         : sourceFields.has(column.header)
           ? "Not a column in the supplied Idaho CSV; needs supplied source/manual/category data, not an invented value"
-          : index >= 64
+          : index >= columns.core.length + columns.license.length
             ? "Requires a supported retrieved legal finding; inspect per-record research coverage and gaps"
-            : index >= 51
+            : index >= columns.core.length
               ? "Requires license/research evidence and, for WVU or manual fields, a supplied comparison dataset"
               : [
                     "licenseType",
@@ -178,7 +184,7 @@ export function auditPartnerCsv(csv: Buffer | string) {
     /^driver(?:s|['’]s|s['’])?\s+licen[cs]e$/i.test(value.trim()),
   );
   return {
-    columns: 74,
+    columns: allColumns.length,
     exportedRows: rows.length,
     filterReady: issues.length === 0,
     requiredBlankCells: issues.filter(
@@ -370,7 +376,7 @@ export async function writePartnerBundle(options: {
       : delivery?.consolidated
         ? "idaho-trial-results.xlsx and .csv consolidate all production parts using the production formatter. Unchanged browser-downloaded originals are in production-exports/; see export-delivery.json. The consolidated files have"
         : "idaho-trial-results.xlsx and .csv are the exact production artifacts downloaded in the browser, with";
-  const readme = `Idaho Skills First — first ten records\n\n${options.mode === "offline" ? "OFFLINE REHEARSAL: MODEL RESULTS AND COSTS ARE SIMULATED.\n\n" : "Live model and Firecrawl run.\n\n"}Execution: ${options.executionPassed ? "passed" : "incomplete / failed"}. Partner filter compatibility: ${audit?.filterReady ? "passed the supplied checks" : "NEEDS REVIEW — see contract-issues.csv"}.\n\nInput: exactly the first ten CSV data records, preserving original order and repeated class codes. These contain ${new Set(data.rows.map((row: IdahoRow) => row["Class Code"])).size} distinct class codes; repeated codes are distinct source rows, not duplicates to discard. Levels may create additional output records. Research/license joins may create additional spreadsheet rows.\n\nScope: adaptation, normalization, level splitting/verification, all seven analysis tasks, license research, education/statute research, rewriting with independent review, dataset comparison, license/education comparison, and export. stage-coverage.json records what actually completed and each job's missing evidence. Running a stage does not establish a legal conclusion.\n\nThe original Idaho CSV has only Class Code, Class Title, Pay Schedule, Pay Grade, FLSA Code, Summary, Duties and Responsibilities, and Qualifications. It does not supply work week, bargaining unit, department, source URL, CSC revisions, occupational categories or manual notes. Pay grade is not a dollar salary range. No WVU/manual reference dataset was supplied: comparison stages may report missing evidence. Unknown booleans have NOT been replaced with FALSE, and unresolved consistency checks have NOT been relabelled n/a. Those are filter-contract issues requiring resolution before import.\n\nOutputs: ${exportDescription}${csv ? " 74 master columns and two header rows (descriptions, then field names)." : ""} JSON retains original texts, findings, reviews, citations and research gaps. field-completeness.csv covers all 74 columns; contract-issues.csv lists disallowed values and blank required booleans. The workbook includes Documents, legal research and review/provenance sheets. Screenshots record the UI states reached during this run.\n\nCosts: settled processing ${usd(costs?.totals.settledMicros)}; unresolved reservations ${usd(costs?.totals.reservedMicros)}; Codex estimated ${usd(costs?.totalCodexEstimatedMicros)}. Firecrawl credits ${costs?.firecrawl.credits ?? "unavailable"}; their allocated plan cost is included in processing, not an additional charge. Agent breakdown: agent-costs.csv. Hard processing cap $5; no bulk run or automatic paid retry.\n\n${options.error ? `Run issue: ${redactManualText(String(options.error))}\n\n` : ""}Share this for-partners folder. Private harness diagnostics and the resumable run archive are kept in its parent directory. SHA256SUMS.json lists every included artifact.\n`;
+  const readme = `Idaho Skills First — first ten records\n\n${options.mode === "offline" ? "OFFLINE REHEARSAL: MODEL RESULTS AND COSTS ARE SIMULATED.\n\n" : "Live model and Firecrawl run.\n\n"}Execution: ${options.executionPassed ? "passed" : "incomplete / failed"}. Partner filter compatibility: ${audit?.filterReady ? "passed the supplied checks" : "NEEDS REVIEW — see contract-issues.csv"}.\n\nInput: exactly the first ten CSV data records, preserving original order and repeated class codes. These contain ${new Set(data.rows.map((row: IdahoRow) => row["Class Code"])).size} distinct class codes; repeated codes are distinct source rows, not duplicates to discard. Levels may create additional output records. Research/license joins may create additional spreadsheet rows.\n\nScope: adaptation, normalization, level splitting/verification, all seven analysis tasks, license research, education/statute research, rewriting with independent review, dataset comparison, license/education comparison, and export. stage-coverage.json records what actually completed and each job's missing evidence. Running a stage does not establish a legal conclusion.\n\nThe original Idaho CSV has only Class Code, Class Title, Pay Schedule, Pay Grade, FLSA Code, Summary, Duties and Responsibilities, and Qualifications. It does not supply work week, bargaining unit, department, source URL, CSC revisions, occupational categories or manual notes. Pay grade is not a dollar salary range. No WVU/manual reference dataset was supplied: comparison stages may report missing evidence. Unknown booleans have NOT been replaced with FALSE, and unresolved consistency checks have NOT been relabelled n/a. Those are filter-contract issues requiring resolution before import.\n\nOutputs: ${exportDescription}${csv ? " 75 master columns (Unique ID first, then the original 74 columns) and two header rows (descriptions, then field names)." : ""} JSON retains original texts, findings, reviews, citations and research gaps. field-completeness.csv covers all 75 columns; contract-issues.csv lists disallowed values and blank required booleans. The workbook includes Documents, legal research and review/provenance sheets. Screenshots record the UI states reached during this run.\n\nCosts: settled processing ${usd(costs?.totals.settledMicros)}; unresolved reservations ${usd(costs?.totals.reservedMicros)}; Codex estimated ${usd(costs?.totalCodexEstimatedMicros)}. Firecrawl credits ${costs?.firecrawl.credits ?? "unavailable"}; their allocated plan cost is included in processing, not an additional charge. Agent breakdown: agent-costs.csv. Hard processing cap $5; no bulk run or automatic paid retry.\n\n${options.error ? `Run issue: ${redactManualText(String(options.error))}\n\n` : ""}Share this for-partners folder. Private harness diagnostics and the resumable run archive are kept in its parent directory. SHA256SUMS.json lists every included artifact.\n`;
   const clarifiedReadme =
     summary.allAgentsCompleted && !options.executionPassed
       ? readme.replace(

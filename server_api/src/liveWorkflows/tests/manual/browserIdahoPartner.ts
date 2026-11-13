@@ -459,7 +459,7 @@ export async function driveBrowserIdahoPartner(
       JSON.stringify(valueVerification.missingOrChangedValues),
     );
     check(
-      "Provider findings survive canonical memory, all 74 CSV/Excel columns, document fields and review details",
+      "Provider findings survive canonical memory, all 75 CSV/Excel columns, document fields and review details",
     );
     await button("Results").click();
     await expect(results.locator("article")).toHaveCount(rows.length);
@@ -482,6 +482,7 @@ export async function driveBrowserIdahoPartner(
       await details.locator("summary").click();
       const job = row as unknown as YpSkillsFirstJobDescription;
       const fields: [string, unknown][] = [
+        ["Unique ID", job.uniqueId],
         ["Title code", job.titleCode],
         [
           "Highest stated education",

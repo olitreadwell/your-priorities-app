@@ -151,6 +151,7 @@ export const run: Agent = async (context, input) => {
       JSON.stringify(
         output.slice(start, start + partSize).map((job) => ({
           id: job.id,
+          uniqueId: job.uniqueId,
           parentId: job.parentId ?? job.id,
           name: job.name,
           level: job.level ?? null,

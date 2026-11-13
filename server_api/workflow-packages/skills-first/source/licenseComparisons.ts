@@ -28,26 +28,32 @@ export function licenseComparison(
   value: unknown,
 ): SkillsFirstLicenseComparison {
   const row = record(value);
-  return Object.fromEntries(
-    columns.license.map((column) => {
-      const value =
-        row[column.path] ??
-        row[column.header] ??
-        (column.path === "matchingWvuProfession"
-          ? row["Matching WVU Profession"]
-          : null);
-      return [
-        column.path,
-        booleanFields.has(column.path)
-          ? referenceFlag(value)
-          : typeof value === "string"
-            ? column.path === "licenseType"
-              ? licenseLabel(value)
-              : value
-            : null,
-      ];
-    }),
-  ) as unknown as SkillsFirstLicenseComparison;
+  return {
+    ...Object.fromEntries(
+      columns.license.map((column) => {
+        const value =
+          row[column.path] ??
+          row[column.header] ??
+          (column.path === "matchingWvuProfession"
+            ? row["Matching WVU Profession"]
+            : null);
+        return [
+          column.path,
+          booleanFields.has(column.path)
+            ? referenceFlag(value)
+            : typeof value === "string"
+              ? column.path === "licenseType"
+                ? licenseLabel(value)
+                : value
+              : null,
+        ];
+      }),
+    ),
+    uniqueId:
+      typeof (row.uniqueId ?? row["Unique ID"]) === "string"
+        ? String(row.uniqueId ?? row["Unique ID"])
+        : null,
+  } as unknown as SkillsFirstLicenseComparison;
 }
 export function matchedLicenseReferences(
   job: SkillsFirstJobDescription,
@@ -61,8 +67,11 @@ export function matchedLicenseReferences(
     .map(licenseComparison)
     .filter(
       (reference) =>
-        type && reference.licenseType?.trim().toLowerCase() === type,
-    );
+        type &&
+        reference.licenseType?.trim().toLowerCase() === type &&
+        (!reference.uniqueId || reference.uniqueId === job.uniqueId),
+    )
+    .map((reference) => ({ ...reference, uniqueId: job.uniqueId }));
 }
 /** The model may add research comparisons, never overwrite supplied manual/reference columns. */
 export function reviewedLicenseComparisons(
@@ -124,6 +133,7 @@ export function reviewedLicenseComparisons(
       );
     return {
       ...reference,
+      uniqueId: job.uniqueId,
       researchEducationRequirement: comparison.researchEducationRequirement as
         | string
         | null,

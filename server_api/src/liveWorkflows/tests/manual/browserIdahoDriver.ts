@@ -361,8 +361,8 @@ export async function driveBrowserIdaho(
     }
     await button("Data").click();
     const snapshot = await state();
-    const assets = snapshot.assets.filter((asset) =>
-      asset.name.startsWith(`${trial.id}-`) && !asset.stagePart,
+    const assets = snapshot.assets.filter(
+      (asset) => asset.name.startsWith(`${trial.id}-`) && !asset.stagePart,
     );
     assert.ok(assets.length >= 6, "Missing trial artifacts");
     const rows: Record<string, unknown>[] = [];
@@ -462,7 +462,7 @@ export async function driveBrowserIdaho(
       JSON.stringify(valueVerification.missingOrChangedValues),
     );
     check(
-      "Provider findings survive canonical memory, all 74 CSV/Excel columns, document fields and review details",
+      "Provider findings survive canonical memory, all 75 CSV/Excel columns, document fields and review details",
     );
     await button("Results").click();
     await expect(results.locator("article")).toHaveCount(rows.length);
@@ -485,6 +485,7 @@ export async function driveBrowserIdaho(
       await details.locator("summary").click();
       const job = row as unknown as YpSkillsFirstJobDescription;
       const fields: [string, unknown][] = [
+        ["Unique ID", job.uniqueId],
         ["Title code", job.titleCode],
         [
           "Highest stated education",

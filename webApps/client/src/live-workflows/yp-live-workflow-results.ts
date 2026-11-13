@@ -407,6 +407,27 @@ export class YpLiveWorkflowResults extends LitElement {
     const degree = job.degreeAnalysis!,
       status = degree.degreeRequirementStatus;
     const license = degree.professionalLicenseRequirement;
+    const checks = Object.values(degree.validationChecks ?? {});
+    const count = (value: string) =>
+      checks.filter((check) => check === value).length;
+    const passed = count("pass"),
+      failed = count("fail"),
+      notApplicable = count("n/a"),
+      unknown = count("unknown");
+    const notChecked = Math.max(
+      0,
+      9 - passed - failed - notApplicable - unknown,
+    );
+    const validationSummary =
+      notChecked === 9
+        ? "Not checked (9 checks)"
+        : [
+            `${passed} passed`,
+            `${failed} failed`,
+            `${notApplicable} not applicable`,
+            ...(unknown ? [`${unknown} unknown`] : []),
+            ...(notChecked ? [`${notChecked} not checked`] : []),
+          ].join(" · ");
     const value = (item: unknown) =>
       item === null || item === undefined || item === ""
         ? "Unknown"
@@ -435,17 +456,13 @@ export class YpLiveWorkflowResults extends LitElement {
       <strong>Skills First findings</strong>
       ${this.documentFindings(row)}
       ${fields([
+        ["Unique ID", job.uniqueId],
         ["Title code", job.titleCode],
         ["Highest stated education", degree.maximumDegreeRequirement],
         ["Degree mandatory", status?.isDegreeMandatory],
         ["Alternative qualifications", status?.hasAlternativeQualifications],
         ["License required", license?.isLicenseRequired],
-        [
-          "Consistency checks",
-          job.validationScore === null || job.validationScore === undefined
-            ? "Not checked"
-            : `${job.validationScore}/9 passed`,
-        ],
+        ["Consistency checks", validationSummary],
       ])}
       <details>
         <summary>Degree paths and evidence</summary>
@@ -497,8 +514,10 @@ export class YpLiveWorkflowResults extends LitElement {
           ]),
         )}
         <p class="muted">
-          The score counts pass results only. Unknown, failed and inapplicable
-          checks are shown individually.
+          These checks assess consistency with the supplied description, not
+          completeness, accuracy percentage or legal verification. Unknown and
+          missing checks are shown separately from failures and inapplicable
+          checks.
         </p>
         ${fields([
           [

@@ -64,6 +64,7 @@ const base = {
   errors: [],
 };
 const referenceHeaders = [
+  "Unique ID",
   ..."agentId|titleCode|variant|classOfService|workWeek|bargainUnit|classCode|salaryRange|workMonth|deptCode|url|name|classification|error|multiLevelJob|cscRevised|notes|mainCategory|subCategory|needsCollegeDegree|maximumDegreeRequirement|includesMultipleJobLevelsWithDifferentEducationalRequirements|educationRequirements|isDegreeMandatory|hasAlternativeQualifications|alternativeQualifications|multipleQualificationPaths|isDegreeAbsolutelyRequired|substitutionPossible|degreeRequirementExplanation|bothTrueExplanation|bothFalseExplanation|isLicenseRequired|licenseType|licenseDescription|issuingAuthority|includesDegreeRequirement|barriersToNonDegreeApplicants|cscRevisedConsistency|requiredAlternativeExplanationConsistency|barriersToNonDegreeApplicantsConsistency|licenseIncludesDegreeRequirementConsistency|alternativesIfTrueConsistency|degreeMandatoryConsistency|alternativeQualificationsConsistency|educationRequirementsConsistency|needsCollegeDegreeConsistency|difficultPassages|readabilityLevel|fleschKincaidGrade|validationScore".split(
     "|",
   ),
@@ -232,6 +233,23 @@ test("analysis populates the original nested memory and validates extended respo
     JSON.stringify(verified.missingOrChangedValues),
   );
   assert.equal(verified.rawResponses, 7);
+  assert.match(
+    artifacts.get("skills-first.md")!,
+    /7 passed · 1 failed · 1 not applicable/,
+  );
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(
+    verificationInput.xlsx as unknown as Parameters<typeof book.xlsx.load>[0],
+  );
+  assert.equal(book.worksheets[0].name, "Validation summary");
+  assert.equal(
+    book.worksheets[0].getCell("E2").value,
+    "7 passed · 1 failed · 1 not applicable",
+  );
+  assert.equal(
+    book.getWorksheet("merged (master + legal)")!.getCell("AZ3").value,
+    7,
+  );
   assert.deepEqual(
     verified.excelLineEndingNormalizations.map((entry) => entry.field),
     ["xlsx.difficultPassages"],
@@ -310,8 +328,56 @@ test("a later invalid response preserves checked analysis, calculated readabilit
     const details = table.sheets.find(
       (sheet: any) => sheet.name === "Review and provenance",
     );
-    assert.deepEqual(JSON.parse(details.rows[1][8]), job.analysis);
+    assert.deepEqual(JSON.parse(details.rows[1][9]), job.analysis);
   }
+});
+
+test("validation summaries preserve unknown and missing checks without changing the partner table", async () => {
+  const makeJob = (id: string, values: (string | null)[]) =>
+    canonicalJob({
+      ...base,
+      id,
+      analysis: {
+        consistency: {
+          findings: {
+            validationChecks: Object.fromEntries(
+              consistencyKeys.map((key: string, i: number) => [
+                key,
+                values[i] ?? null,
+              ]),
+            ),
+          },
+        },
+      },
+    });
+  const memory = skillsFirstMemory([
+    makeJob("all-applicable-pass", ["n/a", "n/a", ...Array(7).fill("pass")]),
+    makeJob("partial", ["pass", "fail", "n/a", "unknown"]),
+    makeJob("unchecked", []),
+  ]);
+  const book = new ExcelJS.Workbook();
+  const bytes = await renderWorkbook(JSON.stringify(tableWorkbook(memory)));
+  await book.xlsx.load(
+    bytes as unknown as Parameters<typeof book.xlsx.load>[0],
+  );
+  const summary = book.getWorksheet("Validation summary")!;
+  assert.equal(summary.rowCount, 4);
+  assert.equal(
+    summary.getCell("E2").value,
+    "7 passed · 0 failed · 2 not applicable",
+  );
+  assert.equal(
+    summary.getCell("E3").value,
+    "1 passed · 1 failed · 1 not applicable · 1 unknown · 5 not checked",
+  );
+  assert.equal(summary.getCell("E4").value, "Not checked (9 checks)");
+  const master = book.getWorksheet("merged (master + legal)")!;
+  const headers = master.getRow(2).values;
+  assert.ok(Array.isArray(headers));
+  assert.deepEqual(headers.slice(1), referenceHeaders);
+  assert.equal(master.getCell("AZ3").value, 7);
+  assert.equal(master.getCell("AZ4").value, null);
+  assert.equal(master.getCell("AZ5").value, null);
 });
 
 test("reading-level selection requires degree findings and preserves original categorical labels", async () => {
@@ -334,7 +400,7 @@ test("reading-level selection requires degree findings and preserves original ca
   assert.deepEqual(calls, ["degrees", "readingLevel"]);
 });
 
-test("exports match all 74 reference headers, preserve source/manual fields, and retain every legal finding", async () => {
+test("exports match the Unique ID column and all 74 original reference headers, preserve source/manual fields, and retain every legal finding", async () => {
   const job = canonicalJob({
     ...base,
     variant: "V2",
@@ -401,12 +467,12 @@ test("exports match all 74 reference headers, preserve source/manual fields, and
     4,
     "One source job with two legal findings produces two master data rows",
   );
-  assert.equal(csv[2][1], "00042");
-  assert.equal(csv[2][23], "false");
-  assert.equal(csv[2][29], "Supplied explanation");
-  assert.equal(csv[2][49], "7.125");
-  assert.equal(csv[2][57], "Supplied manual choice");
-  assert.match(csv[3][71], /Needs review: two/);
+  assert.equal(csv[2][2], "00042");
+  assert.equal(csv[2][24], "false");
+  assert.equal(csv[2][30], "Supplied explanation");
+  assert.equal(csv[2][50], "7.125");
+  assert.equal(csv[2][58], "Supplied manual choice");
+  assert.match(csv[3][72], /Needs review: two/);
   assert.equal(
     artifacts.get("skills-first.xlsx")!.type,
     WORKBOOK_SPEC_CONTENT_TYPE,
@@ -424,11 +490,11 @@ test("exports match all 74 reference headers, preserve source/manual fields, and
     ).slice(1),
     referenceHeaders,
   );
-  assert.equal(book.getWorksheet("Master sheet old")!.getRow(2).cellCount, 64);
+  assert.equal(book.getWorksheet("Master sheet old")!.getRow(2).cellCount, 65);
   assert.equal(book.getWorksheet("legal research")!.rowCount, 3);
   assert.equal(book.getWorksheet("license info")!.rowCount, 2);
   assert.equal(
-    book.getWorksheet("Documents")!.getCell("C2").value,
+    book.getWorksheet("Documents")!.getCell("D2").value,
     description,
   );
   assert.equal(
@@ -623,7 +689,7 @@ test("Excel exports preserve long Unicode text, literal formulas and reject exec
     Uint8Array.from(await renderWorkbook(JSON.stringify(spec))).buffer,
   );
   assert.equal(
-    book.getWorksheet("Documents")!.getCell("B2").type,
+    book.getWorksheet("Documents")!.getCell("C2").type,
     ExcelJS.ValueType.String,
   );
   const overflow = book.getWorksheet("Long cell text")!;
@@ -633,7 +699,7 @@ test("Excel exports preserve long Unicode text, literal formulas and reject exec
       index > 1 &&
       row.getCell(1).value === "Documents" &&
       row.getCell(2).value === 2 &&
-      row.getCell(3).value === 3
+      row.getCell(3).value === 4
     )
       pieces.push(String(row.getCell(5).value));
   });

@@ -190,7 +190,7 @@ export function lifecycleScenario(
         JSON.stringify(verification, null, 2),
       );
       assert.deepEqual(verification.missingOrChangedValues, []);
-      assert.equal(verification.masterColumns, 74);
+      assert.equal(verification.masterColumns, 75);
       assert.equal(verification.rawResponses, original.length * 7);
       for (const job of original)
         assert.ok(downloads.md.toString().includes(job.name));

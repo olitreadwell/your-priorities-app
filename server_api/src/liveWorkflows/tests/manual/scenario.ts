@@ -277,7 +277,7 @@ export async function runManualScenario(
         for (const job of importedJobs) {
           const row = rows.find((row) => row.name === job.name);
           assert.ok(row);
-          assert.equal(Object.keys(row).length, 74);
+          assert.equal(Object.keys(row).length, 75);
         }
       }
       if (extension === "md")

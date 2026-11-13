@@ -201,9 +201,9 @@ test("all analysis tasks bind nested quotations, preserve unknown decisions and 
   );
   const spec = JSON.parse(exported.find((a) => a.name.endsWith(".xlsx"))!.data);
   const documents = spec.sheets.find((s: any) => s.name === "Documents");
-  assert.equal(documents.rows[1][8], "not_stated");
-  assert.equal(documents.rows[1][10], "conditional");
-  assert.match(documents.rows[1][12], /Supplied description only/);
+  assert.equal(documents.rows[1][9], "not_stated");
+  assert.equal(documents.rows[1][11], "conditional");
+  assert.match(documents.rows[1][13], /Supplied description only/);
 });
 
 test("nested degree/preference passage selections cannot introduce a retyped quote", async () => {

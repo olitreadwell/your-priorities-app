@@ -119,6 +119,7 @@ const table = (changes: Record<string, unknown> = {}) =>
     headers.map(
       (header) =>
         ({
+          "Unique ID": "Idaho, USA | 00180 | Manager",
           isDegreeAbsolutelyRequired: false,
           isLicenseRequired: false,
           validationScore: 0,
@@ -173,7 +174,7 @@ test("partner selection preserves exactly the first ten rows, duplicate codes, U
 
 test("contract audit distinguishes false/zero/conditional blanks from missing required decisions", () => {
   const audit = auditPartnerCsv(table());
-  assert.equal(audit.columns, 74);
+  assert.equal(audit.columns, 75);
   assert.equal(audit.filterReady, true);
   for (const field of [
     "isDegreeAbsolutelyRequired",
@@ -226,7 +227,7 @@ test("contract audit flags the partner's unknown checks, invalid categories and 
           .replace('"agentId"', '"changed"')
           .replace('"agentId"', '"changed"'),
       ),
-    /74 headers/,
+    /75 headers/,
   );
 });
 
@@ -324,6 +325,7 @@ test("Idaho class code is preserved from original metadata without replacing rec
   assert.equal(job.id, "upload:2");
   assert.equal(job.titleCode, "00180");
   assert.equal(job.classCode, "00180");
+  assert.equal(job.uniqueId, "Idaho, USA | 00180 | Manager");
   assert.equal(
     canonicalJob({ ...job, classCode: "explicit" }).classCode,
     "explicit",

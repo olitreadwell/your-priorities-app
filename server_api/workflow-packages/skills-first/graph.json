@@ -146,7 +146,7 @@
       "id": "export",
       "kind": "agent",
       "label": "Export results",
-      "description": "Exports the original Skills First memory JSON, 74-column master CSV, Excel workbook and Markdown. Excel includes merged master, base master, license info, legal research, documents and review/provenance sheets. Multiple research rows are preserved. Trials keep artifacts private; approved external writes include only complete, error-free jobs. Targeted runs also save internal result arrays.",
+      "description": "Exports the original Skills First memory JSON, 75-column master with Unique ID first CSV, Excel workbook and Markdown. Excel includes merged master, base master, license info, legal research, documents and review/provenance sheets. Multiple research rows are preserved. Trials keep artifacts private; approved external writes include only complete, error-free jobs. Targeted runs also save internal result arrays.",
       "entrypoint": "source/export.ts",
       "enabled": true,
       "models": {},

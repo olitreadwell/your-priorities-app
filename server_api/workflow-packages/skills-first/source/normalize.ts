@@ -13,7 +13,7 @@ export const run: Agent = async (context, input) => {
       : {};
   for (const [index, value] of input.entries()) {
     const row = object(value);
-    const id = String(row.id ?? row.titleCode ?? index + 1);
+    const id = String(row.id ?? index + 1);
     if (seen.has(id)) throw new Error(`Duplicate record ID: ${id}`);
     seen.add(id);
     const originalText = String(

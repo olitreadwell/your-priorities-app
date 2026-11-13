@@ -1,9 +1,10 @@
-import { RecordError, record, type Job } from "./sdk.js";
+import { RecordError, record, asJson, type Job } from "./sdk.js";
 import { licenseComparison } from "./licenseComparisons.js";
 export { record } from "./sdk.js";
 import { EducationType } from "./educationTypes.js";
 import { readingLevels } from "./readingLevels.js";
 import { licenseLabel, readingLevelLabel } from "./labels.js";
+import { uniqueJobId } from "./identity.js";
 import type {
   SkillsFirstJobDescription,
   SkillsFirstMemory,
@@ -33,6 +34,46 @@ export const explanationKeys = [
   "bothTrueExplanation",
   "bothFalseExplanation",
 ] as const;
+
+/** Preserve the model review, but do not let it approve contradictory qualification flags. */
+export function enforceConsistencyRules(job: Job & SkillsFirstJobDescription) {
+  const previous = record(job.analysis.consistencyRules);
+  delete job.analysis.consistencyRules;
+  const degree = job.degreeAnalysis;
+  const check = "alternativeQualificationsConsistency";
+  // No review yet: targeted analyses must not claim that all nine checks ran.
+  if (
+    degree.validationChecks[check] === null ||
+    degree.degreeRequirementStatus.multipleQualificationPaths !== true ||
+    degree.degreeRequirementStatus.hasAlternativeQualifications !== false
+  )
+    return;
+  const modelChecks = record(
+    record(record(job.analysis.consistency).findings).validationChecks,
+  );
+  const originalResult =
+    modelChecks[check] ??
+    previous.originalResult ??
+    degree.validationChecks[check];
+  degree.validationChecks[check] = "fail";
+  job.validationScore = consistencyKeys.every(
+    (key) => degree.validationChecks[key] !== null,
+  )
+    ? consistencyKeys.filter((key) => degree.validationChecks[key] === "pass")
+        .length
+    : null;
+  job.analysis.consistencyRules = asJson({
+    status: "unknown",
+    rule: "qualification-paths-require-alternatives",
+    check,
+    originalResult,
+    enforcedResult: "fail",
+    issues: [
+      "multipleQualificationPaths is true but hasAlternativeQualifications is false. Both fields must describe the same degree-versus-alternative qualification paths. An empty or unknown alternatives list does not resolve this contradiction.",
+    ],
+  });
+  job.status = "unknown";
+}
 export const businessFields = [
   "titleCode",
   "variant",
@@ -60,10 +101,14 @@ function strings(value: unknown): string[] | null {
 function number(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
-function legalResearch(value: unknown): SkillsFirstLegalResearch {
+function legalResearch(
+  value: unknown,
+  uniqueId: string,
+): SkillsFirstLegalResearch {
   const row = record(value);
   return {
     ...row,
+    uniqueId,
     titleCode: text(row.titleCode),
     jobTitle: text(row.jobTitle) ?? "",
     statedDegreeRequirement: text(row.statedDegreeRequirement),
@@ -132,6 +177,7 @@ export function canonicalJob(input: Job): Job & SkillsFirstJobDescription {
   // Idaho's source code is a business reference, never the runner's row identity.
   job.titleCode ??= text(metadata["Class Code"]) ?? text(raw["Class Code"]);
   job.classCode ??= text(metadata["Class Code"]) ?? text(raw["Class Code"]);
+  job.uniqueId = uniqueJobId(job);
   job.classification =
     strings(raw.classification) ??
     (typeof raw.classification === "string" ? [raw.classification] : null);
@@ -166,7 +212,10 @@ export function canonicalJob(input: Job): Job & SkillsFirstJobDescription {
   };
   job.validationScore = null;
   job.licenseComparisons = Array.isArray(input.licenseComparisons)
-    ? input.licenseComparisons.map(licenseComparison)
+    ? input.licenseComparisons.map((value) => ({
+        ...licenseComparison(value),
+        uniqueId: job.uniqueId,
+      }))
     : [];
   // Import the original nested memory shape before applying newer task results.
   const degree = record(raw.degreeAnalysis);
@@ -197,7 +246,9 @@ export function canonicalJob(input: Job): Job & SkillsFirstJobDescription {
   job.degreeAnalysis.deepResearchResults = Array.isArray(
     input.degreeAnalysis?.deepResearchResults,
   )
-    ? input.degreeAnalysis.deepResearchResults.map(legalResearch)
+    ? input.degreeAnalysis.deepResearchResults.map((value) =>
+        legalResearch(value, job.uniqueId),
+      )
     : [];
   job.readabilityAnalysisTextTSNPM.fleschKincaidGrade = number(
     record(raw.readabilityAnalysisTextTSNPM).fleschKincaidGrade,
@@ -259,6 +310,7 @@ export function canonicalJob(input: Job): Job & SkillsFirstJobDescription {
     job.readabilityAnalysisTextTSNPM.fleschKincaidGrade = number(
       input.analysis.fleschKincaidGrade,
     );
+  enforceConsistencyRules(job);
   return job;
 }
 

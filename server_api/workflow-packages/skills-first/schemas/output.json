@@ -4,6 +4,7 @@
   "items": {
     "type": "object",
     "required": [
+      "uniqueId",
       "titleCode",
       "variant",
       "classOfService",
@@ -36,6 +37,10 @@
       "licenseComparisons"
     ],
     "properties": {
+      "uniqueId": {
+        "type": "string",
+        "minLength": 1
+      },
       "titleCode": {
         "type": [
           "string",
@@ -482,6 +487,7 @@
             "items": {
               "type": "object",
               "required": [
+                "uniqueId",
                 "titleCode",
                 "jobTitle",
                 "statedDegreeRequirement",
@@ -496,6 +502,10 @@
                 "status"
               ],
               "properties": {
+                "uniqueId": {
+                  "type": "string",
+                  "minLength": 1
+                },
                 "titleCode": {
                   "type": [
                     "string",
@@ -630,6 +640,7 @@
         "items": {
           "type": "object",
           "required": [
+            "uniqueId",
             "licenseType",
             "matchingWvuProfession",
             "wvuEducationRequirement",
@@ -645,6 +656,10 @@
             "notes"
           ],
           "properties": {
+            "uniqueId": {
+              "type": "string",
+              "minLength": 1
+            },
             "licenseType": {
               "type": [
                 "string",

@@ -38,6 +38,7 @@ export interface SkillsFirstConsistencyChecks {
   needsCollegeDegreeConsistency: SkillsFirstCheck | null;
 }
 export interface SkillsFirstLegalResearch {
+  uniqueId: string;
   titleCode: string | null;
   jobTitle: string;
   statedDegreeRequirement: string | null;
@@ -53,6 +54,8 @@ export interface SkillsFirstLegalResearch {
 }
 /** Includes supplied reference/manual values; agents must never invent those inputs. */
 export interface SkillsFirstLicenseComparison {
+  /** Null on generic reference data; bound to the job when included in results. */
+  uniqueId: string | null;
   licenseType: string | null;
   matchingWvuProfession: string | null;
   wvuEducationRequirement: string | null;
@@ -68,6 +71,7 @@ export interface SkillsFirstLicenseComparison {
   notes: string | null;
 }
 export interface SkillsFirstJobDescription {
+  uniqueId: string;
   titleCode: string | null;
   variant: string | null;
   classOfService: string | null;

@@ -310,7 +310,7 @@ export async function verifyInteractiveBrowser(
       }[];
       assert.equal(rows.length, 1);
       assert.equal(rows[0].name, job.name);
-      assert.equal(Object.keys(rows[0]).length, 74);
+      assert.equal(Object.keys(rows[0]).length, 75);
     } else if (extension === "md")
       assert.ok(bytes.toString().includes(job.name));
     else

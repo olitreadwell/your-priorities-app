@@ -238,7 +238,7 @@ export async function driveBrowserIdahoReuse(
       "Record failures remain",
     );
     checks.push(
-      "Research evidence and reused analysis preserved through the browser-downloaded 74-column workbook",
+      "Research evidence and reused analysis preserved through the browser-downloaded 75-column workbook",
     );
     await button("Results").click();
     await expect(page.locator("yp-live-workflow-results article")).toHaveCount(

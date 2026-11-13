@@ -1,6 +1,11 @@
 {
   "core": [
     {
+      "header": "Unique ID",
+      "path": "uniqueId",
+      "description": "Job matching key: jurisdiction | titleCode (or classCode) | full title, plus level when split. Source codes alone are not unique."
+    },
+    {
       "header": "agentId",
       "path": "agentId",
       "description": "agentId"
@@ -253,7 +258,7 @@
     {
       "header": "validationScore",
       "path": "validationScore",
-      "description": "validationScore"
+      "description": "Legacy count of consistency checks marked pass (0–9), not a percentage or a measure of completeness or legal verification. See the Validation summary sheet for passed, failed, not applicable, unknown and not checked counts."
     }
   ],
   "license": [

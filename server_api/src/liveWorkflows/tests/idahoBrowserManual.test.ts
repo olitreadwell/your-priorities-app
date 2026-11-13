@@ -307,7 +307,7 @@ test("a failed-review trial still produces Excel output and a clearly ineligible
     assert.equal(book.getWorksheet("merged (master + legal)")!.rowCount, 7);
     assert.equal(
       book.getWorksheet("merged (master + legal)")!.getRow(2).cellCount,
-      74,
+      75,
     );
     assert.equal(
       book.getWorksheet("Documents")!.getCell("C2").type,

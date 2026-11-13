@@ -633,7 +633,7 @@ export async function writeIdahoWorkbook(
   await readback.xlsx.readFile(filename);
   assert.equal(
     readback.getWorksheet("merged (master + legal)")!.getRow(2).cellCount,
-    74,
+    75,
   );
   assert.equal(
     readback.getWorksheet("Review and provenance")!.rowCount - 1,
